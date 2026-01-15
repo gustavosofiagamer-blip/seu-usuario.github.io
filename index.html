@@ -50,8 +50,8 @@ let resultado = [];
 let pegadora, fugitiva;
 let confetes = [];
 
-let framesRoleta = 120;
-let esperaResultado = 0;
+let framesRoleta = 120;        // tempo girando
+let esperaResultado = 0;       // tempo parado mostrando resultado
 
 // ================= ROLETAS =================
 function criarRoleta(x,y){
@@ -79,6 +79,7 @@ function desenharRoleta(r){
     ctx.fill();
   }
 
+  // seta
   ctx.fillStyle="#fff";
   ctx.beginPath();
   ctx.moveTo(r.x,r.y-raio-18);
@@ -138,7 +139,7 @@ function loop(){
         criarRoleta(canvas.width*0.65,canvas.height/2)
       ];
       resultado = sortearCores();
-      framesRoleta = 120;
+      framesRoleta = 120;             // gira 2s
       esperaResultado = 0;
     }
 
@@ -154,9 +155,10 @@ function loop(){
       framesRoleta--;
       if(framesRoleta === 0){
         roletas.forEach(r=>r.vel=0);
-        esperaResultado = 120; // 2 segundos
+        esperaResultado = 300;        // ⭐ 5 segundos (60fps)
       }
-    } else if(esperaResultado > 0){
+    } 
+    else if(esperaResultado > 0){
       esperaResultado--;
       if(esperaResultado === 0){
         roletas = [];
