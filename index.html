@@ -1,19 +1,17 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <title>Macaco vs Bola</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: #111;
-    }
-    canvas {
-      display: block;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Macaco vs Bola v2</title>
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #111;
+}
+canvas { display: block; }
+</style>
 </head>
 <body>
 <canvas id="tela"></canvas>
@@ -28,6 +26,20 @@ function resize() {
 }
 resize();
 addEventListener("resize", resize);
+
+// ===== AUDIO (SEM ARQUIVO EXTERNO) =====
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function somCaptura() {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = "triangle";
+  osc.frequency.value = 700;
+  gain.gain.value = 0.15;
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.12);
+}
 
 // ===== BOLA =====
 let bola = {
@@ -49,80 +61,108 @@ function novaBola() {
 let macaco = {
   x: 100,
   y: 100,
-  raio: 20,
-  velocidade: 3.2
+  r: 22,
+  vel: 3.4
 };
 
 // ===== CONFETES =====
 let confetes = [];
-
 function criarConfetes(x, y) {
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 50; i++) {
     confetes.push({
       x, y,
-      dx: (Math.random() - 0.5) * 8,
-      dy: (Math.random() - 0.5) * 8,
+      dx: (Math.random() - 0.5) * 9,
+      dy: (Math.random() - 0.5) * 9,
       vida: 60,
-      cor: `hsl(${Math.random()*360},100%,50%)`
+      cor: `hsl(${Math.random()*360},100%,55%)`
     });
   }
 }
 
+// ===== PREVISÃO DE RICOCHETE =====
+function preverPosicao() {
+  let px = bola.x + bola.dx * 25;
+  let py = bola.y + bola.dy * 25;
+
+  if (px < bola.raio || px > canvas.width - bola.raio) {
+    px = bola.x - bola.dx * 25;
+  }
+  if (py < bola.raio || py > canvas.height - bola.raio) {
+    py = bola.y - bola.dy * 25;
+  }
+  return { x: px, y: py };
+}
+
+// ===== DESENHO DO MACACO (SPRITE ORIGINAL) =====
+function desenharMacaco() {
+  // corpo
+  ctx.beginPath();
+  ctx.arc(macaco.x, macaco.y, macaco.r, 0, Math.PI * 2);
+  ctx.fillStyle = "#7a4a1d";
+  ctx.fill();
+
+  // rosto
+  ctx.beginPath();
+  ctx.arc(macaco.x, macaco.y + 6, macaco.r - 8, 0, Math.PI * 2);
+  ctx.fillStyle = "#e3b58a";
+  ctx.fill();
+
+  // olhos
+  ctx.fillStyle = "#000";
+  ctx.beginPath();
+  ctx.arc(macaco.x - 6, macaco.y + 2, 2.5, 0, Math.PI * 2);
+  ctx.arc(macaco.x + 6, macaco.y + 2, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // bandana (estilo tower defense 👀)
+  ctx.strokeStyle = "red";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(macaco.x, macaco.y - 10, macaco.r - 4, Math.PI, 0);
+  ctx.stroke();
+}
+
 // ===== LOOP =====
 function animar() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // ---- BOLA ----
+  // bola
   bola.x += bola.dx;
   bola.y += bola.dy;
 
-  if (bola.x + bola.raio >= canvas.width || bola.x - bola.raio <= 0) {
-    bola.dx *= -1;
-  }
-  if (bola.y + bola.raio >= canvas.height || bola.y - bola.raio <= 0) {
-    bola.dy *= -1;
-  }
+  if (bola.x + bola.raio >= canvas.width || bola.x - bola.raio <= 0) bola.dx *= -1;
+  if (bola.y + bola.raio >= canvas.height || bola.y - bola.raio <= 0) bola.dy *= -1;
 
   ctx.beginPath();
   ctx.arc(bola.x, bola.y, bola.raio, 0, Math.PI * 2);
   ctx.fillStyle = "red";
   ctx.fill();
 
-  // ---- MACACO (perseguição) ----
-  let angulo = Math.atan2(bola.y - macaco.y, bola.x - macaco.x);
-  macaco.x += Math.cos(angulo) * macaco.velocidade;
-  macaco.y += Math.sin(angulo) * macaco.velocidade;
+  // macaco com previsão
+  const alvo = preverPosicao();
+  const ang = Math.atan2(alvo.y - macaco.y, alvo.x - macaco.x);
+  macaco.x += Math.cos(ang) * macaco.vel;
+  macaco.y += Math.sin(ang) * macaco.vel;
 
-  // corpo
-  ctx.beginPath();
-  ctx.arc(macaco.x, macaco.y, macaco.raio, 0, Math.PI * 2);
-  ctx.fillStyle = "#8b5a2b";
-  ctx.fill();
+  desenharMacaco();
 
-  // rosto simples (estilo cartoon)
-  ctx.beginPath();
-  ctx.arc(macaco.x, macaco.y + 5, macaco.raio - 8, 0, Math.PI * 2);
-  ctx.fillStyle = "#cfa67a";
-  ctx.fill();
-
-  // ---- COLISÃO ----
-  let dist = Math.hypot(bola.x - macaco.x, bola.y - macaco.y);
-  if (dist < bola.raio + macaco.raio) {
+  // colisão
+  const dist = Math.hypot(bola.x - macaco.x, bola.y - macaco.y);
+  if (dist < bola.raio + macaco.r) {
+    somCaptura();
     criarConfetes(bola.x, bola.y);
     novaBola();
   }
 
-  // ---- CONFETES ----
-  confetes.forEach((c, i) => {
+  // confetes
+  confetes.forEach((c,i)=>{
     c.x += c.dx;
     c.y += c.dy;
-    c.dy += 0.2;
+    c.dy += 0.25;
     c.vida--;
-
     ctx.fillStyle = c.cor;
     ctx.fillRect(c.x, c.y, 4, 4);
-
-    if (c.vida <= 0) confetes.splice(i, 1);
+    if (c.vida <= 0) confetes.splice(i,1);
   });
 
   requestAnimationFrame(animar);
