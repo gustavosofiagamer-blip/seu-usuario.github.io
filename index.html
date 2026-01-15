@@ -28,7 +28,7 @@ resize();
 addEventListener("resize", resize);
 
 const RAIO = 14;
-const TEMPO_FUGA = 20 * 60; // 20s
+const TEMPO_FUGA = 10 * 60; // 10 segundos
 const RESTART_DELAY = 5 * 60;
 
 const cores = ["yellow", "red", "dodgerblue", "lime"];
@@ -36,9 +36,9 @@ const cores = ["yellow", "red", "dodgerblue", "lime"];
 let pegadora, fugitiva;
 let tempo, estado, confetes, delay;
 
-// ===== INICIAR JOGO =====
+// ===== INICIAR =====
 function iniciarJogo() {
-  let escolhidas = cores.sort(() => Math.random() - 0.5).slice(0, 2);
+  let escolhidas = [...cores].sort(() => Math.random() - 0.5).slice(0, 2);
 
   pegadora = criarBola(escolhidas[0]);
   fugitiva = criarBola(escolhidas[1]);
@@ -65,13 +65,13 @@ function manterNaTela(b) {
 }
 
 function criarConfetes(cor) {
-  for (let i = 0; i < 80; i++) {
+  for (let i = 0; i < 100; i++) {
     confetes.push({
       x: canvas.width / 2,
       y: canvas.height / 2,
-      dx: (Math.random() - 0.5) * 8,
-      dy: (Math.random() - 0.5) * 8,
-      vida: 80,
+      dx: (Math.random() - 0.5) * 9,
+      dy: (Math.random() - 0.5) * 9,
+      vida: 90,
       cor
     });
   }
@@ -82,6 +82,13 @@ iniciarJogo();
 // ===== LOOP =====
 function loop() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // ===== TIMER (FUNDO) =====
+  ctx.fillStyle = "#555";
+  ctx.font = "bold 160px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(Math.ceil(tempo / 60), canvas.width / 2, canvas.height / 2);
 
   if (estado === "jogando") {
     tempo--;
@@ -114,13 +121,12 @@ function loop() {
       criarConfetes(fugitiva.cor);
       estado = "fim";
     }
-  } 
-  else {
+  } else {
     delay++;
     if (delay >= RESTART_DELAY) iniciarJogo();
   }
 
-  // desenhar bolas ativas
+  // ===== BOLAS (POR CIMA DO TIMER) =====
   [pegadora, fugitiva].forEach(b => {
     ctx.beginPath();
     ctx.arc(b.x, b.y, RAIO, 0, Math.PI * 2);
@@ -128,21 +134,16 @@ function loop() {
     ctx.fill();
   });
 
-  // confetes
+  // ===== CONFETES =====
   confetes.forEach((c,i) => {
     c.x += c.dx;
     c.y += c.dy;
-    c.dy += 0.2;
+    c.dy += 0.25;
     c.vida--;
     ctx.fillStyle = c.cor;
     ctx.fillRect(c.x, c.y, 4, 4);
     if (c.vida <= 0) confetes.splice(i,1);
   });
-
-  // HUD
-  ctx.fillStyle = "white";
-  ctx.font = "18px Arial";
-  ctx.fillText(`Tempo: ${Math.ceil(tempo/60)}`, 20, 30);
 
   requestAnimationFrame(loop);
 }
