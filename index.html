@@ -29,28 +29,41 @@ addEventListener("resize", resize);
 
 const RAIO = 14;
 const TEMPO_FUGA = 10 * 60; // 10 segundos
-const cores = ["yellow", "red", "dodgerblue", "lime"];
+const cores = [
+  {nome:"AMARELO", cor:"yellow"},
+  {nome:"VERMELHO", cor:"red"},
+  {nome:"AZUL", cor:"dodgerblue"},
+  {nome:"VERDE", cor:"lime"}
+];
 
 let pegadora, fugitiva;
-let tempo, estado, confetes;
+let tempo, estado;
+let confetes = [];
+let roleta1 = 0, roleta2 = 0;
+let tempoRoleta = 120;
+let cor1, cor2;
 
-// ===== INICIAR =====
+// ===== INÍCIO =====
+iniciarRoletas();
+
+function iniciarRoletas() {
+  estado = "roleta";
+  tempoRoleta = 120;
+}
+
 function iniciarJogo() {
-  let escolhidas = [...cores].sort(() => Math.random() - 0.5).slice(0, 2);
-
-  pegadora = criarBola(escolhidas[0]);
-  fugitiva = criarBola(escolhidas[1]);
-
+  pegadora = criarBola(cor1.cor);
+  fugitiva = criarBola(cor2.cor);
   tempo = TEMPO_FUGA;
-  estado = "jogando";
   confetes = [];
+  estado = "jogando";
 }
 
 function criarBola(cor) {
   return {
     cor,
-    x: Math.random() * (canvas.width - RAIO * 2) + RAIO,
-    y: Math.random() * (canvas.height - RAIO * 2) + RAIO,
+    x: Math.random() * (canvas.width - RAIO*2) + RAIO,
+    y: Math.random() * (canvas.height - RAIO*2) + RAIO,
     vx: 0,
     vy: 0
   };
@@ -59,39 +72,64 @@ function criarBola(cor) {
 function criarConfetes(cor) {
   for (let i = 0; i < 120; i++) {
     confetes.push({
-      x: canvas.width / 2,
-      y: canvas.height / 2,
-      dx: (Math.random() - 0.5) * 10,
-      dy: (Math.random() - 0.5) * 10,
+      x: canvas.width/2,
+      y: canvas.height/2,
+      dx: (Math.random()-0.5)*10,
+      dy: (Math.random()-0.5)*10,
       vida: 90,
       cor
     });
   }
 }
 
-iniciarJogo();
-
 // ===== LOOP =====
 function loop() {
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // TIMER GIGANTE ABSURDO
-  const tamanhoTimer = Math.min(canvas.width, canvas.height) * 0.6;
-  ctx.fillStyle = "#444";
-  ctx.font = `900 ${tamanhoTimer}px Arial`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(Math.ceil(tempo / 60), canvas.width / 2, canvas.height / 2);
+  // ===== ROLETAS =====
+  if (estado === "roleta") {
+    roleta1 = Math.floor(Math.random() * cores.length);
+    do {
+      roleta2 = Math.floor(Math.random() * cores.length);
+    } while (roleta2 === roleta1);
 
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.font = "bold 80px Arial";
+    ctx.fillStyle = cores[roleta1].cor;
+    ctx.fillText(cores[roleta1].nome, canvas.width*0.3, canvas.height/2);
+
+    ctx.fillStyle = cores[roleta2].cor;
+    ctx.fillText(cores[roleta2].nome, canvas.width*0.7, canvas.height/2);
+
+    ctx.fillStyle = "#555";
+    ctx.font = "40px Arial";
+    ctx.fillText("🎡 ESCOLHENDO CORES 🎡", canvas.width/2, canvas.height*0.25);
+
+    tempoRoleta--;
+    if (tempoRoleta <= 0) {
+      cor1 = cores[roleta1];
+      cor2 = cores[roleta2];
+      iniciarJogo();
+    }
+  }
+
+  // ===== JOGO =====
   if (estado === "jogando") {
     tempo--;
 
-    // pegadora persegue
+    // TIMER GIGANTE
+    const tamanhoTimer = Math.min(canvas.width, canvas.height) * 0.6;
+    ctx.fillStyle = "#444";
+    ctx.font = `900 ${tamanhoTimer}px Arial`;
+    ctx.fillText(Math.ceil(tempo/60), canvas.width/2, canvas.height/2);
+
+    // movimento
     let angP = Math.atan2(fugitiva.y - pegadora.y, fugitiva.x - pegadora.x);
     pegadora.vx = Math.cos(angP) * 3;
     pegadora.vy = Math.sin(angP) * 3;
 
-    // fugitiva foge
     let angF = Math.atan2(fugitiva.y - pegadora.y, fugitiva.x - pegadora.x);
     fugitiva.vx = Math.cos(angF) * 2.2;
     fugitiva.vy = Math.sin(angF) * 2.2;
@@ -99,38 +137,31 @@ function loop() {
     [pegadora, fugitiva].forEach(b => {
       b.x += b.vx;
       b.y += b.vy;
-
-      // manter na tela (CORRIGIDO)
       b.x = Math.max(RAIO, Math.min(canvas.width - RAIO, b.x));
       b.y = Math.max(RAIO, Math.min(canvas.height - RAIO, b.y));
     });
 
     // colisão
-    let d = Math.hypot(pegadora.x - fugitiva.x, pegadora.y - fugitiva.y);
-    if (d < RAIO * 2) {
+    if (Math.hypot(pegadora.x - fugitiva.x, pegadora.y - fugitiva.y) < RAIO*2) {
       criarConfetes(pegadora.cor);
       estado = "fim";
     }
 
-    // tempo acabou
     if (tempo <= 0) {
       criarConfetes(fugitiva.cor);
       estado = "fim";
     }
-  } else {
-    // reinício automático
-    if (confetes.length === 0) iniciarJogo();
+
+    // bolas por cima do timer
+    [pegadora, fugitiva].forEach(b => {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, RAIO, 0, Math.PI*2);
+      ctx.fillStyle = b.cor;
+      ctx.fill();
+    });
   }
 
-  // bolas por cima do timer
-  [pegadora, fugitiva].forEach(b => {
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, RAIO, 0, Math.PI * 2);
-    ctx.fillStyle = b.cor;
-    ctx.fill();
-  });
-
-  // confetes
+  // ===== CONFETES =====
   confetes.forEach((c,i) => {
     c.x += c.dx;
     c.y += c.dy;
@@ -140,6 +171,10 @@ function loop() {
     ctx.fillRect(c.x, c.y, 4, 4);
     if (c.vida <= 0) confetes.splice(i,1);
   });
+
+  if (estado === "fim" && confetes.length === 0) {
+    iniciarRoletas();
+  }
 
   requestAnimationFrame(loop);
 }
