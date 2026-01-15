@@ -2,22 +2,24 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Macaco vs Bola v2</title>
+<title>Pega-Pega das Bolinhas</title>
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: #111;
-}
-canvas { display: block; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #111;
+  }
+  canvas {
+    display: block;
+  }
 </style>
 </head>
 <body>
-<canvas id="tela"></canvas>
+<canvas id="c"></canvas>
 
 <script>
-const canvas = document.getElementById("tela");
+const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
 
 function resize() {
@@ -27,149 +29,92 @@ function resize() {
 resize();
 addEventListener("resize", resize);
 
-// ===== AUDIO (SEM ARQUIVO EXTERNO) =====
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function somCaptura() {
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = "triangle";
-  osc.frequency.value = 700;
-  gain.gain.value = 0.15;
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.12);
+// ===== CONFIG =====
+const TOTAL = 5;
+const RAIO = 12;
+
+// ===== BOLINHAS =====
+let bolinhas = [];
+
+// cria bolinhas
+for (let i = 0; i < TOTAL; i++) {
+  bolinhas.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 4,
+    vy: (Math.random() - 0.5) * 4,
+    pegadora: false
+  });
 }
 
-// ===== BOLA =====
-let bola = {
-  raio: 14,
-  x: 200,
-  y: 200,
-  dx: 5,
-  dy: 5
-};
-
-function novaBola() {
-  bola.x = Math.random() * (canvas.width - 100) + 50;
-  bola.y = Math.random() * (canvas.height - 100) + 50;
-  bola.dx = (Math.random() > 0.5 ? 1 : -1) * 5;
-  bola.dy = (Math.random() > 0.5 ? 1 : -1) * 5;
-}
-
-// ===== MACACO =====
-let macaco = {
-  x: 100,
-  y: 100,
-  r: 22,
-  vel: 3.4
-};
-
-// ===== CONFETES =====
-let confetes = [];
-function criarConfetes(x, y) {
-  for (let i = 0; i < 50; i++) {
-    confetes.push({
-      x, y,
-      dx: (Math.random() - 0.5) * 9,
-      dy: (Math.random() - 0.5) * 9,
-      vida: 60,
-      cor: `hsl(${Math.random()*360},100%,55%)`
-    });
-  }
-}
-
-// ===== PREVISÃO DE RICOCHETE =====
-function preverPosicao() {
-  let px = bola.x + bola.dx * 25;
-  let py = bola.y + bola.dy * 25;
-
-  if (px < bola.raio || px > canvas.width - bola.raio) {
-    px = bola.x - bola.dx * 25;
-  }
-  if (py < bola.raio || py > canvas.height - bola.raio) {
-    py = bola.y - bola.dy * 25;
-  }
-  return { x: px, y: py };
-}
-
-// ===== DESENHO DO MACACO (SPRITE ORIGINAL) =====
-function desenharMacaco() {
-  // corpo
-  ctx.beginPath();
-  ctx.arc(macaco.x, macaco.y, macaco.r, 0, Math.PI * 2);
-  ctx.fillStyle = "#7a4a1d";
-  ctx.fill();
-
-  // rosto
-  ctx.beginPath();
-  ctx.arc(macaco.x, macaco.y + 6, macaco.r - 8, 0, Math.PI * 2);
-  ctx.fillStyle = "#e3b58a";
-  ctx.fill();
-
-  // olhos
-  ctx.fillStyle = "#000";
-  ctx.beginPath();
-  ctx.arc(macaco.x - 6, macaco.y + 2, 2.5, 0, Math.PI * 2);
-  ctx.arc(macaco.x + 6, macaco.y + 2, 2.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // bandana (estilo tower defense 👀)
-  ctx.strokeStyle = "red";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.arc(macaco.x, macaco.y - 10, macaco.r - 4, Math.PI, 0);
-  ctx.stroke();
-}
+// escolhe a pegadora
+bolinhas[Math.floor(Math.random() * bolinhas.length)].pegadora = true;
 
 // ===== LOOP =====
-function animar() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // bola
-  bola.x += bola.dx;
-  bola.y += bola.dy;
-
-  if (bola.x + bola.raio >= canvas.width || bola.x - bola.raio <= 0) bola.dx *= -1;
-  if (bola.y + bola.raio >= canvas.height || bola.y - bola.raio <= 0) bola.dy *= -1;
-
-  ctx.beginPath();
-  ctx.arc(bola.x, bola.y, bola.raio, 0, Math.PI * 2);
-  ctx.fillStyle = "red";
-  ctx.fill();
-
-  // macaco com previsão
-  const alvo = preverPosicao();
-  const ang = Math.atan2(alvo.y - macaco.y, alvo.x - macaco.x);
-  macaco.x += Math.cos(ang) * macaco.vel;
-  macaco.y += Math.sin(ang) * macaco.vel;
-
-  desenharMacaco();
-
-  // colisão
-  const dist = Math.hypot(bola.x - macaco.x, bola.y - macaco.y);
-  if (dist < bola.raio + macaco.r) {
-    somCaptura();
-    criarConfetes(bola.x, bola.y);
-    novaBola();
+  if (bolinhas.length <= 1) {
+    ctx.fillStyle = "white";
+    ctx.font = "30px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Fim do jogo", canvas.width / 2, canvas.height / 2);
+    return;
   }
 
-  // confetes
-  confetes.forEach((c,i)=>{
-    c.x += c.dx;
-    c.y += c.dy;
-    c.dy += 0.25;
-    c.vida--;
-    ctx.fillStyle = c.cor;
-    ctx.fillRect(c.x, c.y, 4, 4);
-    if (c.vida <= 0) confetes.splice(i,1);
+  bolinhas.forEach((b, i) => {
+    // movimento
+    b.x += b.vx;
+    b.y += b.vy;
+
+    // quicar na parede
+    if (b.x < RAIO || b.x > canvas.width - RAIO) b.vx *= -1;
+    if (b.y < RAIO || b.y > canvas.height - RAIO) b.vy *= -1;
+
+    // se for pegadora, persegue
+    if (b.pegadora) {
+      let alvo = bolinhas.find(o => !o.pegadora);
+      if (alvo) {
+        let ang = Math.atan2(alvo.y - b.y, alvo.x - b.x);
+        b.vx = Math.cos(ang) * 3;
+        b.vy = Math.sin(ang) * 3;
+      }
+    } 
+    // fugitivas fogem
+    else {
+      let pegadora = bolinhas.find(o => o.pegadora);
+      let ang = Math.atan2(b.y - pegadora.y, b.x - pegadora.x);
+      b.vx = Math.cos(ang) * 2;
+      b.vy = Math.sin(ang) * 2;
+    }
+
+    // desenhar
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, RAIO, 0, Math.PI * 2);
+    ctx.fillStyle = b.pegadora ? "red" : "white";
+    ctx.fill();
   });
 
-  requestAnimationFrame(animar);
+  // colisões
+  for (let i = bolinhas.length - 1; i >= 0; i--) {
+    for (let j = bolinhas.length - 1; j >= 0; j--) {
+      if (i !== j) {
+        let a = bolinhas[i];
+        let b = bolinhas[j];
+        let d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < RAIO * 2) {
+          if (a.pegadora && !b.pegadora) {
+            bolinhas.splice(j, 1);
+          }
+        }
+      }
+    }
+  }
+
+  requestAnimationFrame(loop);
 }
 
-novaBola();
-animar();
+loop();
 </script>
 </body>
 </html>
