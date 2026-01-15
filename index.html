@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="UTF-8">
-<title>Pega-Pega</title>
+<title>Pega-Pega das Bolas</title>
 <style>
 html,body{
   margin:0;
@@ -28,18 +28,19 @@ function resize(){
 resize();
 addEventListener("resize", resize);
 
-// ===== CONFIG =====
+// ================= CONFIG =================
 const RAIO = 14;
-const TEMPO_MAX = 10 * 60;
+const FPS = 60;
+const TEMPO_MAX = 10 * FPS;
 
 const CORES = [
-  {cor:"yellow"},
-  {cor:"red"},
-  {cor:"dodgerblue"},
-  {cor:"lime"}
+  {nome:"Amarelo", cor:"yellow"},
+  {nome:"Vermelho", cor:"red"},
+  {nome:"Azul", cor:"dodgerblue"},
+  {nome:"Verde", cor:"lime"}
 ];
 
-// ===== ESTADO =====
+// ================= ESTADO =================
 let estado = "roleta";
 let tempo = 0;
 
@@ -49,7 +50,10 @@ let resultado = [];
 let pegadora, fugitiva;
 let confetes = [];
 
-// ===== ROLETAS =====
+let framesRoleta = 120;
+let esperaResultado = 0;
+
+// ================= ROLETAS =================
 function criarRoleta(x,y){
   return {
     x,y,
@@ -66,7 +70,12 @@ function desenharRoleta(r){
     ctx.beginPath();
     ctx.moveTo(r.x,r.y);
     ctx.fillStyle=CORES[i].cor;
-    ctx.arc(r.x,r.y,raio,r.angulo+i*fatia,r.angulo+(i+1)*fatia);
+    ctx.arc(
+      r.x,r.y,
+      raio,
+      r.angulo+i*fatia,
+      r.angulo+(i+1)*fatia
+    );
     ctx.fill();
   }
 
@@ -87,7 +96,7 @@ function sortearCores(){
   return [CORES[i], CORES[j]];
 }
 
-// ===== JOGO =====
+// ================= JOGO =================
 function criarBola(cor){
   return{
     cor,
@@ -98,16 +107,14 @@ function criarBola(cor){
 }
 
 function iniciarJogo(){
-  [pegadora,fugitiva] = [
-    criarBola(resultado[0].cor),
-    criarBola(resultado[1].cor)
-  ];
+  pegadora = criarBola(resultado[0].cor);
+  fugitiva = criarBola(resultado[1].cor);
   tempo = TEMPO_MAX;
   estado = "jogo";
 }
 
 function criarConfetes(cor){
-  for(let i=0;i<120;i++){
+  for(let i=0;i<150;i++){
     confetes.push({
       x:canvas.width/2,
       y:canvas.height/2,
@@ -119,13 +126,11 @@ function criarConfetes(cor){
   }
 }
 
-// ===== LOOP =====
-let framesRoleta = 120;
-
+// ================= LOOP =================
 function loop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // ===== ROLETAS =====
+  // -------- ROLETAS --------
   if(estado==="roleta"){
     if(roletas.length===0){
       roletas = [
@@ -134,60 +139,86 @@ function loop(){
       ];
       resultado = sortearCores();
       framesRoleta = 120;
+      esperaResultado = 0;
     }
 
     roletas.forEach(r=>{
-      r.angulo += r.vel;
-      r.vel *= 0.985;
+      if(framesRoleta > 0){
+        r.angulo += r.vel;
+        r.vel *= 0.985;
+      }
       desenharRoleta(r);
     });
 
-    framesRoleta--;
-    if(framesRoleta<=0){
-      roletas = [];
-      iniciarJogo(); // 👈 ROLETAS SOMEM E O JOGO COMEÇA
+    if(framesRoleta > 0){
+      framesRoleta--;
+      if(framesRoleta === 0){
+        roletas.forEach(r=>r.vel=0);
+        esperaResultado = 120; // 2 segundos
+      }
+    } else if(esperaResultado > 0){
+      esperaResultado--;
+      if(esperaResultado === 0){
+        roletas = [];
+        iniciarJogo();
+      }
     }
   }
 
-  // ===== JOGO =====
+  // -------- JOGO --------
   if(estado==="jogo"){
     tempo--;
 
     // TIMER GIGANTE
     ctx.fillStyle="#444";
-    ctx.font=`900 ${Math.min(canvas.width,canvas.height)*0.6}px Arial`;
+    ctx.font=`900 ${Math.min(canvas.width,canvas.height)*0.65}px Arial`;
     ctx.textAlign="center";
     ctx.textBaseline="middle";
-    ctx.fillText(Math.ceil(tempo/60),canvas.width/2,canvas.height/2);
+    ctx.fillText(
+      Math.ceil(tempo/FPS),
+      canvas.width/2,
+      canvas.height/2
+    );
 
-    let a=Math.atan2(fugitiva.y-pegadora.y,fugitiva.x-pegadora.x);
-    pegadora.vx=Math.cos(a)*3;
-    pegadora.vy=Math.sin(a)*3;
-    fugitiva.vx=-Math.cos(a)*2.2;
-    fugitiva.vy=-Math.sin(a)*2.2;
+    let ang = Math.atan2(
+      fugitiva.y-pegadora.y,
+      fugitiva.x-pegadora.x
+    );
+
+    pegadora.vx = Math.cos(ang)*3;
+    pegadora.vy = Math.sin(ang)*3;
+
+    fugitiva.vx = -Math.cos(ang)*2.2;
+    fugitiva.vy = -Math.sin(ang)*2.2;
 
     [pegadora,fugitiva].forEach(b=>{
-      b.x+=b.vx;
-      b.y+=b.vy;
-      b.x=Math.max(RAIO,Math.min(canvas.width-RAIO,b.x));
-      b.y=Math.max(RAIO,Math.min(canvas.height-RAIO,b.y));
+      b.x += b.vx;
+      b.y += b.vy;
+
+      b.x = Math.max(RAIO,Math.min(canvas.width-RAIO,b.x));
+      b.y = Math.max(RAIO,Math.min(canvas.height-RAIO,b.y));
+
       ctx.beginPath();
       ctx.arc(b.x,b.y,RAIO,0,Math.PI*2);
       ctx.fillStyle=b.cor;
       ctx.fill();
     });
 
-    if(Math.hypot(pegadora.x-fugitiva.x,pegadora.y-fugitiva.y)<RAIO*2){
+    if(Math.hypot(
+      pegadora.x-fugitiva.x,
+      pegadora.y-fugitiva.y
+    ) < RAIO*2){
       criarConfetes(pegadora.cor);
       estado="fim";
     }
+
     if(tempo<=0){
       criarConfetes(fugitiva.cor);
       estado="fim";
     }
   }
 
-  // ===== CONFETES =====
+  // -------- CONFETES --------
   confetes.forEach((c,i)=>{
     c.x+=c.dx;
     c.y+=c.dy;
@@ -195,7 +226,7 @@ function loop(){
     c.vida--;
     ctx.fillStyle=c.cor;
     ctx.fillRect(c.x,c.y,4,4);
-    if(c.vida<=0)confetes.splice(i,1);
+    if(c.vida<=0) confetes.splice(i,1);
   });
 
   if(estado==="fim" && confetes.length===0){
@@ -204,6 +235,7 @@ function loop(){
 
   requestAnimationFrame(loop);
 }
+
 loop();
 </script>
 
